@@ -11,7 +11,7 @@ npm start
 
 Open `http://localhost:4200/#/login`.
 
-The app is configured to use the deployed backend at `https://career-dashboard-node.vercel.app`. To work fully offline, set `useMockApi: true` in `src/environments/environment.ts`; mock mode accepts `namrata@example.com` or `recruiter@example.com` with any 4+ character password.
+The app is configured to use the deployed backend at `https://career-dashboard-node.vercel.app`. The first two dashboard users must create accounts through the signup form. After two users exist, the backend closes signup and only those accounts can sign in. To work fully offline, set `useMockApi: true` in `src/environments/environment.ts`; mock mode accepts `namrata@example.com` or `recruiter@example.com` with any 4+ character password.
 
 ## Backend Configuration
 
@@ -25,6 +25,8 @@ Set `apiBaseUrl` to the deployed backend URL and set `useMockApi` to `false` whe
 The frontend expects these REST shapes:
 
 - `POST /auth/login`
+- `GET /auth/signup-status`
+- `POST /auth/signup`
 - `GET /jobs`
 - `PATCH /jobs/:id/application-status`
 - `GET/POST/PUT/DELETE /companies`

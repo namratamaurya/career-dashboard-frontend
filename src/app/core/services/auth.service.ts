@@ -2,7 +2,7 @@ import { HttpClient } from '@angular/common/http';
 import { Injectable, computed, inject, signal } from '@angular/core';
 import { Observable, delay, map, of, tap, throwError } from 'rxjs';
 import { environment } from '../../../environments/environment';
-import { BackendLoginResponse, BackendUserProfile, LoginResponse, User } from '../models/career.models';
+import { BackendLoginResponse, BackendUserProfile, LoginResponse, SignupRequest, SignupStatus, User } from '../models/career.models';
 import { mockUsers } from './mock-data';
 
 const TOKEN_KEY = 'career-dashboard-token';
@@ -18,6 +18,13 @@ export class AuthService {
   readonly user = this.userState.asReadonly();
   readonly isAuthenticated = computed(() => Boolean(this.tokenState() && this.userState()));
 
+  signupStatus(): Observable<SignupStatus> {
+    if (environment.useMockApi) {
+      return of({ usersCreated: 0, maxUsers: 2, signupOpen: true }).pipe(delay(200));
+    }
+    return this.http.get<SignupStatus>(`${environment.apiBaseUrl}/auth/signup-status`);
+  }
+
   login(email: string, password: string): Observable<LoginResponse> {
     if (environment.useMockApi) {
       const user = mockUsers.find((candidate) => candidate.email.toLowerCase() === email.toLowerCase());
@@ -31,6 +38,28 @@ export class AuthService {
       .post<BackendLoginResponse>(`${environment.apiBaseUrl}/auth/login`, { email, password })
       .pipe(map((response) => this.fromBackendLogin(response, email)))
       .pipe(tap((response) => this.setSession(response)));
+  }
+
+  signup(request: SignupRequest): Observable<LoginResponse> {
+    if (environment.useMockApi) {
+      const user: User = {
+        id: crypto.randomUUID(),
+        name: request.displayName,
+        email: request.email,
+        avatarUrl: `https://api.dicebear.com/9.x/initials/svg?seed=${encodeURIComponent(request.displayName)}`,
+        profile: {
+          fieldKeywords: request.fieldKeywords,
+          targetLocations: request.targetLocations,
+          notificationEmails: [request.email],
+        },
+      };
+      return of({ token: `mock-jwt-${user.id}`, user }).pipe(delay(450), tap((response) => this.setSession(response)));
+    }
+
+    return this.http.post<BackendLoginResponse>(`${environment.apiBaseUrl}/auth/signup`, request).pipe(
+      map((response) => this.fromBackendLogin(response, request.email)),
+      tap((response) => this.setSession(response)),
+    );
   }
 
   loadProfile(): Observable<User> {

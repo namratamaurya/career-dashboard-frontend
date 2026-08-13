@@ -22,6 +22,30 @@ describe('AuthService', () => {
     });
   });
 
+  it('reports mock signup as open for the first two dashboard users', (done) => {
+    service.signupStatus().subscribe((status) => {
+      expect(status.signupOpen).toBeTrue();
+      expect(status.maxUsers).toBe(2);
+      done();
+    });
+  });
+
+  it('signs up a mock user and stores the token', (done) => {
+    service
+      .signup({
+        displayName: 'New Dashboard User',
+        email: 'new@example.com',
+        password: 'Password123!',
+        fieldKeywords: ['angular'],
+        targetLocations: ['remote'],
+      })
+      .subscribe((response) => {
+        expect(response.user.email).toBe('new@example.com');
+        expect(service.isAuthenticated()).toBeTrue();
+        done();
+      });
+  });
+
   it('clears auth state on logout', () => {
     service.logout();
     expect(service.isAuthenticated()).toBeFalse();

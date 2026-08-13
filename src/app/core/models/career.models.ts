@@ -37,6 +37,20 @@ export interface BackendLoginResponse {
   profile?: BackendUserProfile;
 }
 
+export interface SignupRequest {
+  email: string;
+  password: string;
+  displayName: string;
+  fieldKeywords: string[];
+  targetLocations: string[];
+}
+
+export interface SignupStatus {
+  usersCreated: number;
+  maxUsers: number;
+  signupOpen: boolean;
+}
+
 export interface JobFilters {
   keyword: string;
   location: string;
