@@ -11,12 +11,7 @@ npm start
 
 Open `http://localhost:4200/#/login`.
 
-Mock demo accounts:
-
-- `namrata@example.com`
-- `recruiter@example.com`
-
-Use any password with at least 4 characters while `useMockApi` is enabled.
+The app is configured to use the deployed backend at `https://career-dashboard-node.vercel.app`. To work fully offline, set `useMockApi: true` in `src/environments/environment.ts`; mock mode accepts `namrata@example.com` or `recruiter@example.com` with any 4+ character password.
 
 ## Backend Configuration
 
@@ -25,7 +20,7 @@ API settings live in:
 - `src/environments/environment.ts`
 - `src/environments/environment.prod.ts`
 
-Set `apiBaseUrl` to the deployed backend URL, for example a Render HTTPS URL, and set `useMockApi` to `false` when the backend is ready.
+Set `apiBaseUrl` to the deployed backend URL and set `useMockApi` to `false` when the backend is ready.
 
 The frontend expects these REST shapes:
 
@@ -34,7 +29,11 @@ The frontend expects these REST shapes:
 - `PATCH /jobs/:id/application-status`
 - `GET/POST/PUT/DELETE /companies`
 - `POST /companies/:id/scrape-now`
-- saved search and profile endpoints matching the service methods in `src/app/core/services/`
+- `GET/PATCH /me/profile`
+- `GET/POST /saved-searches`
+- `POST /saved-searches/:id/notify-now`
+- `POST /notifications/email-settings`
+- `POST /notifications/send-current-matches`
 
 Because this is a static SPA, JWTs are stored in memory and `localStorage`. That is convenient for GitHub Pages, but less secure than httpOnly cookies. For production, prefer same-site httpOnly cookies when the hosting model allows it.
 

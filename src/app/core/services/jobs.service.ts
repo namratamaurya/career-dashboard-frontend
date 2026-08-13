@@ -2,7 +2,7 @@ import { HttpClient, HttpParams } from '@angular/common/http';
 import { Injectable, computed, inject, signal } from '@angular/core';
 import { Observable, delay, map, of, tap, throwError } from 'rxjs';
 import { environment } from '../../../environments/environment';
-import { ApplicationStatus, Job, JobFilters } from '../models/career.models';
+import { ApplicationStatus, BackendJobPosting, Job, JobFilters, PaginatedJobs } from '../models/career.models';
 import { defaultFilters, mockJobs } from './mock-data';
 
 @Injectable({ providedIn: 'root' })
@@ -27,8 +27,11 @@ export class JobsService {
       return of(this.jobsState()).pipe(delay(300));
     }
     return this.http
-      .get<Job[]>(`${environment.apiBaseUrl}/jobs`, { params: this.queryParams() })
-      .pipe(tap((jobs) => this.jobsState.set(jobs)));
+      .get<PaginatedJobs>(`${environment.apiBaseUrl}/jobs`, { params: this.queryParams() })
+      .pipe(
+        map((response) => response.items.map((job) => this.fromBackendJob(job))),
+        tap((jobs) => this.jobsState.set(jobs)),
+      );
   }
 
   setFilters(filters: Partial<JobFilters>): void {
@@ -51,7 +54,9 @@ export class JobsService {
 
     const request = environment.useMockApi
       ? of(updated).pipe(delay(250))
-      : this.http.patch<Job>(`${environment.apiBaseUrl}/jobs/${jobId}/application-status`, { status });
+      : this.http
+          .patch<unknown>(`${environment.apiBaseUrl}/jobs/${jobId}/application-status`, { status: this.toBackendStatus(status) })
+          .pipe(map(() => updated));
 
     return request.pipe(
       tap({
@@ -62,7 +67,20 @@ export class JobsService {
 
   serializeFilters(filters: JobFilters): HttpParams {
     let params = new HttpParams();
-    Object.entries(filters).forEach(([key, value]) => {
+    const entries: Record<string, string | boolean | number> = {
+      keyword: filters.keyword,
+      location: filters.location,
+      type: this.toBackendJobType(filters.jobType),
+      company: filters.company,
+      since: filters.dateFrom,
+      until: filters.dateTo,
+      newSinceLastVisit: filters.newSinceLastVisit,
+      includeOutsideProfile: !filters.profileDefault,
+      sort: 'newest',
+      page: this.pageIndex() + 1,
+      pageSize: this.pageSize(),
+    };
+    Object.entries(entries).forEach(([key, value]) => {
       if (value !== '' && value !== false && value !== null && value !== undefined) {
         params = params.set(key, String(value));
       }
@@ -82,5 +100,45 @@ export class JobsService {
       const toMatch = !filters.dateTo || job.postedDate <= filters.dateTo;
       return keywordMatch && locationMatch && typeMatch && companyMatch && newMatch && fromMatch && toMatch;
     });
+  }
+
+  private fromBackendJob(job: BackendJobPosting): Job {
+    const postedDate = job.postedAt ?? job.firstSeenAt ?? job.lastSeenAt;
+    return {
+      id: job.id,
+      title: job.title,
+      companyId: job.company.id,
+      company: job.company.name,
+      companyLogoUrl: job.company.logoUrl ?? `https://api.dicebear.com/9.x/shapes/svg?seed=${encodeURIComponent(job.company.name)}`,
+      location: job.location ?? 'Unknown',
+      jobType: this.fromBackendJobType(job.jobType),
+      postedDate: postedDate ? postedDate.slice(0, 10) : '',
+      applyUrl: job.url,
+      status: this.fromBackendStatus(job.applicationStatus ?? job.status ?? 'NOT_APPLIED'),
+      tags: [job.department, ...(job.company.tags ?? [])].filter(Boolean) as string[],
+      isNew: Boolean(job.firstSeenAt && new Date(job.firstSeenAt).getTime() > Date.now() - 7 * 24 * 60 * 60 * 1000),
+      whyThisFits: job.whyThisFits,
+    };
+  }
+
+  private fromBackendStatus(status: string): ApplicationStatus {
+    const normalized = status.toLowerCase();
+    return normalized === 'not_applied' || normalized === 'applied' || normalized === 'interviewing' || normalized === 'rejected' || normalized === 'offer'
+      ? normalized
+      : 'not_applied';
+  }
+
+  private toBackendStatus(status: ApplicationStatus): string {
+    return status.toUpperCase();
+  }
+
+  private fromBackendJobType(type: string): Job['jobType'] {
+    const labels: Record<string, Job['jobType']> = { REMOTE: 'Remote', HYBRID: 'Hybrid', ONSITE: 'Onsite', UNKNOWN: 'Unknown' };
+    return labels[type] ?? 'Unknown';
+  }
+
+  private toBackendJobType(type: string): string {
+    const labels: Record<string, string> = { Remote: 'REMOTE', Hybrid: 'HYBRID', Onsite: 'ONSITE', Unknown: 'UNKNOWN' };
+    return labels[type] ?? '';
   }
 }

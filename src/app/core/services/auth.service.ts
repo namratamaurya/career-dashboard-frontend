@@ -2,7 +2,7 @@ import { HttpClient } from '@angular/common/http';
 import { Injectable, computed, inject, signal } from '@angular/core';
 import { Observable, delay, map, of, tap, throwError } from 'rxjs';
 import { environment } from '../../../environments/environment';
-import { LoginResponse, User } from '../models/career.models';
+import { BackendLoginResponse, BackendUserProfile, LoginResponse, User } from '../models/career.models';
 import { mockUsers } from './mock-data';
 
 const TOKEN_KEY = 'career-dashboard-token';
@@ -28,8 +28,22 @@ export class AuthService {
     }
 
     return this.http
-      .post<LoginResponse>(`${environment.apiBaseUrl}/auth/login`, { email, password })
+      .post<BackendLoginResponse>(`${environment.apiBaseUrl}/auth/login`, { email, password })
+      .pipe(map((response) => this.fromBackendLogin(response, email)))
       .pipe(tap((response) => this.setSession(response)));
+  }
+
+  loadProfile(): Observable<User> {
+    if (environment.useMockApi) {
+      return of(this.userState() ?? mockUsers[0]).pipe(delay(200));
+    }
+    return this.http.get<BackendUserProfile>(`${environment.apiBaseUrl}/me/profile`).pipe(
+      map((profile) => this.fromBackendProfile(profile)),
+      tap((user) => {
+        this.userState.set(user);
+        localStorage.setItem(USER_KEY, JSON.stringify(user));
+      }),
+    );
   }
 
   logout(): void {
@@ -39,14 +53,36 @@ export class AuthService {
     this.userState.set(null);
   }
 
-  updateProfile(profile: User['profile']): void {
+  updateProfile(profile: User['profile']): Observable<User> {
     const user = this.userState();
     if (!user) {
-      return;
+      return throwError(() => new Error('No authenticated user.'));
     }
-    const next = { ...user, profile };
-    this.userState.set(next);
-    localStorage.setItem(USER_KEY, JSON.stringify(next));
+    if (environment.useMockApi) {
+      const next = { ...user, profile };
+      this.userState.set(next);
+      localStorage.setItem(USER_KEY, JSON.stringify(next));
+      return of(next).pipe(delay(200));
+    }
+
+    return this.http
+      .patch<BackendUserProfile>(`${environment.apiBaseUrl}/me/profile`, {
+        id: user.id,
+        email: user.email,
+        displayName: user.name,
+        fieldKeywords: profile.fieldKeywords,
+        targetLocations: profile.targetLocations,
+      })
+      .pipe(
+        map((backendProfile) => ({
+          ...this.fromBackendProfile(backendProfile),
+          profile: { ...profile, notificationEmails: profile.notificationEmails },
+        })),
+        tap((next) => {
+          this.userState.set(next);
+          localStorage.setItem(USER_KEY, JSON.stringify(next));
+        }),
+      );
   }
 
   private setSession(response: LoginResponse): void {
@@ -67,5 +103,38 @@ export class AuthService {
       localStorage.removeItem(USER_KEY);
       return null;
     }
+  }
+
+  private fromBackendLogin(response: BackendLoginResponse, email: string): LoginResponse {
+    const token = response.token ?? response.accessToken ?? response.jwt;
+    const profile = response.user ?? response.profile;
+    if (!token) {
+      throw new Error('Login response did not include a JWT token.');
+    }
+    return { token, user: profile ? this.fromBackendProfile(profile) : this.fallbackUser(email) };
+  }
+
+  private fromBackendProfile(profile: BackendUserProfile): User {
+    return {
+      id: profile.id,
+      name: profile.displayName,
+      email: profile.email,
+      avatarUrl: `https://api.dicebear.com/9.x/initials/svg?seed=${encodeURIComponent(profile.displayName)}`,
+      profile: {
+        fieldKeywords: profile.fieldKeywords ?? [],
+        targetLocations: profile.targetLocations ?? [],
+        notificationEmails: this.userState()?.profile.notificationEmails ?? [profile.email],
+      },
+    };
+  }
+
+  private fallbackUser(email: string): User {
+    return {
+      id: email,
+      name: email.split('@')[0],
+      email,
+      avatarUrl: `https://api.dicebear.com/9.x/initials/svg?seed=${encodeURIComponent(email)}`,
+      profile: { fieldKeywords: [], targetLocations: [], notificationEmails: [email] },
+    };
   }
 }

@@ -1,5 +1,5 @@
 export const environment = {
   production: true,
-  apiBaseUrl: 'https://your-career-dashboard-api.onrender.com',
+  apiBaseUrl: 'https://career-dashboard-node.vercel.app',
   useMockApi: false,
 };

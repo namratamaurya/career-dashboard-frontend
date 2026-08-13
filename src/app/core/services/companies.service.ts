@@ -1,8 +1,8 @@
 import { HttpClient } from '@angular/common/http';
 import { Injectable, inject, signal } from '@angular/core';
-import { Observable, delay, of, tap } from 'rxjs';
+import { Observable, delay, map, of, tap } from 'rxjs';
 import { environment } from '../../../environments/environment';
-import { Company } from '../models/career.models';
+import { BackendCompany, Company } from '../models/career.models';
 import { mockCompanies } from './mock-data';
 
 @Injectable({ providedIn: 'root' })
@@ -15,7 +15,10 @@ export class CompaniesService {
     if (environment.useMockApi) {
       return of(this.companiesState()).pipe(delay(250));
     }
-    return this.http.get<Company[]>(`${environment.apiBaseUrl}/companies`).pipe(tap((companies) => this.companiesState.set(companies)));
+    return this.http.get<BackendCompany[]>(`${environment.apiBaseUrl}/companies`).pipe(
+      map((companies) => companies.map((company) => this.fromBackendCompany(company))),
+      tap((companies) => this.companiesState.set(companies)),
+    );
   }
 
   saveCompany(company: Partial<Company>): Observable<Company> {
@@ -39,9 +42,10 @@ export class CompaniesService {
       return of(saved).pipe(delay(250));
     }
 
+    const input = this.toBackendCompanyInput(saved);
     return company.id
-      ? this.http.put<Company>(`${environment.apiBaseUrl}/companies/${company.id}`, saved)
-      : this.http.post<Company>(`${environment.apiBaseUrl}/companies`, saved);
+      ? this.http.patch<BackendCompany>(`${environment.apiBaseUrl}/companies/${company.id}`, input).pipe(map((response) => this.fromBackendCompany(response)))
+      : this.http.post<BackendCompany>(`${environment.apiBaseUrl}/companies`, input).pipe(map((response) => this.fromBackendCompany(response)));
   }
 
   deleteCompany(id: string): Observable<void> {
@@ -66,6 +70,39 @@ export class CompaniesService {
         }),
       );
     }
-    return this.http.post<Company>(`${environment.apiBaseUrl}/companies/${id}/scrape-now`, {});
+    return this.http.post<unknown>(`${environment.apiBaseUrl}/companies/${id}/scrape-now`, {}).pipe(
+      map(() => ({ ...this.companiesState().find((company) => company.id === id)!, lastScrapeStatus: 'queued' as const })),
+      tap((company) => this.companiesState.update((companies) => companies.map((item) => (item.id === id ? company : item)))),
+    );
+  }
+
+  private fromBackendCompany(company: BackendCompany): Company {
+    return {
+      id: company.id,
+      name: company.name,
+      logoUrl: company.logoUrl ?? `https://api.dicebear.com/9.x/shapes/svg?seed=${encodeURIComponent(company.name)}`,
+      careersUrl: company.portalUrl,
+      atsType: this.titleEnum(company.atsType),
+      priority: this.titleEnum(company.priority),
+      tags: company.tags ?? [],
+      lastScrapedAt: company.lastScrapedAt ?? '',
+      lastScrapeStatus: company.lastScrapeStatus.toLowerCase() as Company['lastScrapeStatus'],
+    };
+  }
+
+  private toBackendCompanyInput(company: Company): Record<string, unknown> {
+    return {
+      name: company.name,
+      portalUrl: company.careersUrl,
+      atsType: company.atsType.toUpperCase(),
+      logoUrl: company.logoUrl,
+      tags: company.tags,
+      priority: company.priority.toUpperCase(),
+      scrapeIntervalMinutes: 720,
+    };
+  }
+
+  private titleEnum<T extends string>(value: string): T {
+    return (value.charAt(0).toUpperCase() + value.slice(1).toLowerCase()) as T;
   }
 }

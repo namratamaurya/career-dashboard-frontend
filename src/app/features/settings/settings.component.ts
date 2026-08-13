@@ -48,8 +48,10 @@ export class SettingsComponent {
       fieldKeywords: this.split(value.fieldKeywords),
       targetLocations: this.split(value.targetLocations),
       notificationEmails: this.split(value.notificationEmails),
+    }).subscribe({
+      next: () => this.toast.show('Settings saved.', 'success'),
+      error: () => this.toast.show('Could not save settings.', 'error'),
     });
-    this.toast.show('Settings saved.', 'success');
   }
 
   private split(value: string): string[] {

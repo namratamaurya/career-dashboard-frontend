@@ -3,10 +3,12 @@ import { provideHttpClient } from '@angular/common/http';
 import { provideRouter, Router } from '@angular/router';
 import { authGuard } from './auth.guard';
 import { AuthService } from '../services/auth.service';
+import { environment } from '../../../environments/environment';
 
 describe('authGuard', () => {
   beforeEach(() => {
     localStorage.clear();
+    environment.useMockApi = true;
     TestBed.configureTestingModule({ providers: [provideRouter([]), provideHttpClient()] });
   });
 

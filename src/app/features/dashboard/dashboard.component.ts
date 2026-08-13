@@ -121,7 +121,7 @@ export class DashboardComponent implements OnInit {
   readonly companies = inject(CompaniesService);
   private readonly toast = inject(ToastService);
   readonly loading = signal(true);
-  readonly jobTypes = ['Full-time', 'Part-time', 'Contract', 'Internship', 'Remote'];
+  readonly jobTypes = ['Remote', 'Hybrid', 'Onsite', 'Unknown'];
   readonly newCount = computed(() => this.jobs.filteredJobs().filter((job) => job.isNew).length);
   readonly interviewCount = computed(() => this.jobs.jobs().filter((job) => job.status === 'interviewing').length);
   readonly form = this.fb.group({

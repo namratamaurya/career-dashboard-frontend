@@ -15,7 +15,7 @@ import { AuthService } from '../../core/services/auth.service';
       <section class="login-copy">
         <p>Career Dashboard</p>
         <h1>Track the roles worth your attention.</h1>
-        <span>Seeded demo accounts: namrata@example.com or recruiter@example.com. Use any 4+ character password in mock mode.</span>
+        <span>Use one of the seeded backend accounts. Mock mode still supports namrata@example.com or recruiter@example.com with any 4+ character password.</span>
       </section>
 
       <mat-card>
@@ -62,8 +62,8 @@ export class LoginComponent {
   readonly loading = signal(false);
   readonly error = signal('');
   readonly form = this.fb.group({
-    email: ['namrata@example.com', [Validators.required, Validators.email]],
-    password: ['portfolio', [Validators.required, Validators.minLength(4)]],
+    email: ['', [Validators.required, Validators.email]],
+    password: ['', [Validators.required, Validators.minLength(4)]],
   });
 
   submit(): void {

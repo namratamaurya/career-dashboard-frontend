@@ -87,7 +87,7 @@ export class CompaniesComponent implements OnInit {
   readonly companies = inject(CompaniesService);
   private readonly toast = inject(ToastService);
   readonly columns = ['company', 'priority', 'tags', 'scraped', 'actions'];
-  readonly atsTypes = ['Greenhouse', 'Lever', 'Workday', 'Ashby', 'Custom'];
+  readonly atsTypes = ['Greenhouse', 'Lever', 'Workday', 'Custom', 'Unknown'];
   readonly priorities = ['High', 'Medium', 'Low'];
   readonly editingId = signal<string | null>(null);
   readonly scrapingId = signal<string | null>(null);

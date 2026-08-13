@@ -17,7 +17,7 @@ export const errorInterceptor: HttpInterceptorFn = (request, next) => {
         router.navigate(['/login']);
         toast.show('Your session expired. Please sign in again.', 'error');
       } else {
-        toast.show(error.error?.message ?? 'Something went wrong. Please try again.', 'error');
+        toast.show(error.error?.error?.message ?? error.error?.message ?? 'Something went wrong. Please try again.', 'error');
       }
       return throwError(() => error);
     }),

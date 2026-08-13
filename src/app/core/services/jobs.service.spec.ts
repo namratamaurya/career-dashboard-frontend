@@ -1,11 +1,13 @@
 import { TestBed } from '@angular/core/testing';
 import { provideHttpClient } from '@angular/common/http';
 import { JobsService } from './jobs.service';
+import { environment } from '../../../environments/environment';
 
 describe('JobsService', () => {
   let service: JobsService;
 
   beforeEach(() => {
+    environment.useMockApi = true;
     TestBed.configureTestingModule({ providers: [provideHttpClient()] });
     service = TestBed.inject(JobsService);
   });
