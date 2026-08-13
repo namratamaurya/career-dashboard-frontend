@@ -1,0 +1,85 @@
+.job-card {
+  display: grid;
+  gap: 15px;
+  border: 1px solid var(--line, #dde4ee);
+  border-radius: 8px;
+  background: var(--panel, #fff);
+  padding: 18px;
+  box-shadow: 0 14px 40px rgba(15, 23, 42, 0.06);
+}
+
+.job-heading {
+  display: flex;
+  gap: 12px;
+  min-width: 0;
+}
+
+img {
+  width: 48px;
+  height: 48px;
+  border-radius: 8px;
+  border: 1px solid var(--line, #dde4ee);
+}
+
+.meta,
+.details,
+.tags,
+footer {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  flex-wrap: wrap;
+}
+
+.meta,
+.details {
+  color: var(--muted, #667085);
+  font-size: 0.87rem;
+}
+
+h2 {
+  margin: 4px 0 0;
+  font-size: 1.15rem;
+}
+
+.new-dot,
+.tags span {
+  border-radius: 999px;
+  background: #ecfdf5;
+  color: #047857;
+  font-size: 0.78rem;
+  font-weight: 700;
+  padding: 3px 8px;
+}
+
+.details span {
+  display: inline-flex;
+  align-items: center;
+  gap: 4px;
+}
+
+.details mat-icon {
+  width: 17px;
+  height: 17px;
+  font-size: 17px;
+}
+
+.tags span {
+  background: #eff6ff;
+  color: #1d4ed8;
+}
+
+.fit {
+  border-left: 3px solid #10b981;
+  color: var(--muted, #667085);
+  margin: 0;
+  padding-left: 10px;
+}
+
+footer {
+  justify-content: space-between;
+}
+
+mat-form-field {
+  width: 180px;
+}

@@ -1,0 +1,77 @@
+.applications-layout {
+  display: grid;
+  gap: 18px;
+}
+
+mat-card {
+  border-radius: 8px;
+}
+
+.analytics mat-card-content {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) auto;
+  align-items: center;
+  gap: 18px;
+}
+
+canvas {
+  max-height: 260px;
+}
+
+.kanban {
+  display: grid;
+  grid-template-columns: repeat(5, minmax(190px, 1fr));
+  gap: 14px;
+  overflow-x: auto;
+}
+
+.column {
+  display: grid;
+  align-content: start;
+  gap: 10px;
+  border: 1px solid var(--line, #dde4ee);
+  border-radius: 8px;
+  background: color-mix(in srgb, var(--panel, #fff) 82%, transparent);
+  padding: 12px;
+}
+
+h2 {
+  display: flex;
+  justify-content: space-between;
+  margin: 0;
+  font-size: 1rem;
+}
+
+.application-card {
+  display: grid;
+  gap: 8px;
+  border: 1px solid var(--line, #dde4ee);
+  border-radius: 8px;
+  background: var(--panel, #fff);
+  cursor: pointer;
+  padding: 12px;
+}
+
+.application-card span {
+  color: var(--muted, #667085);
+}
+
+.editor {
+  max-width: 720px;
+}
+
+.editor mat-card-content {
+  display: grid;
+  gap: 12px;
+}
+
+.form-actions {
+  display: flex;
+  gap: 10px;
+}
+
+@media (max-width: 800px) {
+  .analytics mat-card-content {
+    grid-template-columns: 1fr;
+  }
+}

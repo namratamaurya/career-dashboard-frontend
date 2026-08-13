@@ -1,0 +1,37 @@
+.saved-layout,
+.search-list,
+form {
+  display: grid;
+  gap: 16px;
+}
+
+mat-card {
+  border-radius: 8px;
+}
+
+form {
+  grid-template-columns: minmax(180px, 1fr) minmax(180px, 1fr) auto;
+  align-items: center;
+  margin-top: 16px;
+}
+
+.search-list {
+  grid-template-columns: repeat(auto-fit, minmax(280px, 1fr));
+}
+
+mat-card-content {
+  display: grid;
+  gap: 12px;
+}
+
+.actions {
+  display: flex;
+  justify-content: space-between;
+  gap: 10px;
+}
+
+@media (max-width: 700px) {
+  form {
+    grid-template-columns: 1fr;
+  }
+}
