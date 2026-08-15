@@ -46,23 +46,6 @@ form {
   margin-top: 18px;
 }
 
-.mode-switch {
-  display: grid;
-  grid-template-columns: repeat(auto-fit, minmax(110px, 1fr));
-  gap: 8px;
-  margin-top: 18px;
-}
-
-.mode-switch button {
-  border: 1px solid #d8e1ee;
-  border-radius: 8px;
-}
-
-.mode-switch button.active {
-  background: #eff6ff;
-  color: #1d4ed8;
-}
-
 .form-error {
   border-radius: 8px;
   background: #fee2e2;

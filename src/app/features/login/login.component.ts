@@ -1,4 +1,4 @@
-import { Component, OnInit, computed, inject, signal } from '@angular/core';
+import { Component, OnInit, inject, signal } from '@angular/core';
 import { NonNullableFormBuilder, ReactiveFormsModule, Validators } from '@angular/forms';
 import { Router } from '@angular/router';
 import { MatButtonModule } from '@angular/material/button';
@@ -20,7 +20,7 @@ import { AuthService } from '../../core/services/auth.service';
 
       <mat-card>
         <mat-card-header>
-          <mat-card-title>{{ isSignup() ? 'Create dashboard account' : 'Sign in' }}</mat-card-title>
+          <mat-card-title>{{ signupOpen() ? 'Create dashboard account' : 'Sign in' }}</mat-card-title>
           <mat-card-subtitle>
             @if (checkingSignup()) {
               Checking signup availability...
@@ -32,14 +32,7 @@ import { AuthService } from '../../core/services/auth.service';
           </mat-card-subtitle>
         </mat-card-header>
         <mat-card-content>
-          <div class="mode-switch" role="group" aria-label="Access mode">
-            @if (signupOpen()) {
-              <button mat-button type="button" [class.active]="isSignup()" (click)="showSignup()">Sign up</button>
-            }
-            <button mat-button type="button" [class.active]="!isSignup()" (click)="showLogin()">Sign in</button>
-          </div>
-
-          @if (isSignup()) {
+          @if (signupOpen()) {
             <form [formGroup]="signupForm" (ngSubmit)="submit()">
               <mat-form-field appearance="outline">
                 <mat-label>Display name</mat-label>
@@ -126,8 +119,6 @@ export class LoginComponent implements OnInit {
   readonly signupOpen = signal(false);
   readonly usersCreated = signal(0);
   readonly maxUsers = signal(2);
-  readonly mode = signal<'signup' | 'login'>('login');
-  readonly isSignup = computed(() => this.mode() === 'signup');
   readonly loginForm = this.fb.group({
     email: ['', [Validators.required, Validators.email]],
     password: ['', [Validators.required, Validators.minLength(4)]],
@@ -146,32 +137,17 @@ export class LoginComponent implements OnInit {
         this.signupOpen.set(status.signupOpen);
         this.usersCreated.set(status.usersCreated);
         this.maxUsers.set(status.maxUsers);
-        this.mode.set(status.signupOpen ? 'signup' : 'login');
         this.checkingSignup.set(false);
       },
       error: () => {
         this.signupOpen.set(false);
-        this.mode.set('login');
         this.checkingSignup.set(false);
       },
     });
   }
 
   submit(): void {
-    this.isSignup() ? this.signup() : this.login();
-  }
-
-  showLogin(): void {
-    this.mode.set('login');
-    this.error.set('');
-  }
-
-  showSignup(): void {
-    if (!this.signupOpen()) {
-      return;
-    }
-    this.mode.set('signup');
-    this.error.set('');
+    this.signupOpen() ? this.signup() : this.login();
   }
 
   private login(): void {
