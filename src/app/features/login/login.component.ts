@@ -7,6 +7,8 @@ import { MatFormFieldModule } from '@angular/material/form-field';
 import { MatInputModule } from '@angular/material/input';
 import { AuthService } from '../../core/services/auth.service';
 
+const EMAIL_PATTERN = /^[^\s@]+@[^\s@]+\.[^\s@]{2,}$/;
+
 @Component({
   selector: 'app-login',
   imports: [ReactiveFormsModule, MatButtonModule, MatCardModule, MatFormFieldModule, MatInputModule],
@@ -46,7 +48,7 @@ import { AuthService } from '../../core/services/auth.service';
                 <mat-label>Email</mat-label>
                 <input matInput type="email" formControlName="email" autocomplete="email" />
                 @if (signupForm.controls.email.invalid && signupForm.controls.email.touched) {
-                  <mat-error>Enter a valid email.</mat-error>
+                  <mat-error>Enter a valid email address before creating the account.</mat-error>
                 }
               </mat-form-field>
 
@@ -82,7 +84,7 @@ import { AuthService } from '../../core/services/auth.service';
                 <mat-label>Email</mat-label>
                 <input matInput type="email" formControlName="email" autocomplete="email" />
                 @if (loginForm.controls.email.invalid && loginForm.controls.email.touched) {
-                  <mat-error>Enter a valid email.</mat-error>
+                  <mat-error>Enter a valid email address before signing in.</mat-error>
                 }
               </mat-form-field>
 
@@ -120,12 +122,12 @@ export class LoginComponent implements OnInit {
   readonly usersCreated = signal(0);
   readonly maxUsers = signal(2);
   readonly loginForm = this.fb.group({
-    email: ['', [Validators.required, Validators.email]],
+    email: ['', [Validators.required, Validators.email, Validators.pattern(EMAIL_PATTERN)]],
     password: ['', [Validators.required, Validators.minLength(4)]],
   });
   readonly signupForm = this.fb.group({
     displayName: ['', [Validators.required, Validators.minLength(2)]],
-    email: ['', [Validators.required, Validators.email]],
+    email: ['', [Validators.required, Validators.email, Validators.pattern(EMAIL_PATTERN)]],
     password: ['', [Validators.required, Validators.minLength(8)]],
     fieldKeywords: ['frontend, angular, typescript'],
     targetLocations: ['remote, bengaluru, mumbai'],
@@ -157,7 +159,10 @@ export class LoginComponent implements OnInit {
     }
     this.loading.set(true);
     this.error.set('');
-    this.auth.login(this.loginForm.controls.email.value, this.loginForm.controls.password.value).subscribe({
+    const value = this.loginForm.getRawValue();
+    const email = this.normalizeEmail(value.email);
+    this.loginForm.controls.email.setValue(email);
+    this.auth.login(email, value.password).subscribe({
       next: () => this.router.navigate(['/dashboard']),
       error: (error: Error) => {
         this.error.set(error.message);
@@ -172,11 +177,13 @@ export class LoginComponent implements OnInit {
       return;
     }
     const value = this.signupForm.getRawValue();
+    const email = this.normalizeEmail(value.email);
+    this.signupForm.controls.email.setValue(email);
     this.loading.set(true);
     this.error.set('');
     this.auth
       .signup({
-        email: value.email,
+        email,
         password: value.password,
         displayName: value.displayName,
         fieldKeywords: this.splitList(value.fieldKeywords),
@@ -196,5 +203,9 @@ export class LoginComponent implements OnInit {
       .split(',')
       .map((item) => item.trim())
       .filter(Boolean);
+  }
+
+  private normalizeEmail(value: string): string {
+    return value.trim().toLowerCase();
   }
 }
