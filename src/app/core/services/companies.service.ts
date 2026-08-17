@@ -8,15 +8,15 @@ import { mockCompanies } from './mock-data';
 @Injectable({ providedIn: 'root' })
 export class CompaniesService {
   private readonly http = inject(HttpClient);
-  private readonly companiesState = signal<Company[]>(mockCompanies);
+  private readonly companiesState = signal<Company[]>(environment.useMockApi ? mockCompanies : []);
   readonly companies = this.companiesState.asReadonly();
 
   loadCompanies(): Observable<Company[]> {
     if (environment.useMockApi) {
       return of(this.companiesState()).pipe(delay(250));
     }
-    return this.http.get<BackendCompany[]>(`${environment.apiBaseUrl}/companies`).pipe(
-      map((companies) => companies.map((company) => this.fromBackendCompany(company))),
+    return this.http.get<BackendCompaniesResponse>(`${environment.apiBaseUrl}/companies`).pipe(
+      map((response) => this.unwrapCompanies(response).map((company) => this.fromBackendCompany(company))),
       tap((companies) => this.companiesState.set(companies)),
     );
   }
@@ -44,8 +44,14 @@ export class CompaniesService {
 
     const input = this.toBackendCompanyInput(saved);
     return company.id
-      ? this.http.patch<BackendCompany>(`${environment.apiBaseUrl}/companies/${company.id}`, input).pipe(map((response) => this.fromBackendCompany(response)))
-      : this.http.post<BackendCompany>(`${environment.apiBaseUrl}/companies`, input).pipe(map((response) => this.fromBackendCompany(response)));
+      ? this.http.patch<BackendCompany>(`${environment.apiBaseUrl}/companies/${company.id}`, input).pipe(
+          map((response) => this.fromBackendCompany(response)),
+          tap((updated) => this.companiesState.update((companies) => companies.map((item) => (item.id === updated.id ? updated : item)))),
+        )
+      : this.http.post<BackendCompany>(`${environment.apiBaseUrl}/companies`, input).pipe(
+          map((response) => this.fromBackendCompany(response)),
+          tap((created) => this.companiesState.update((companies) => [created, ...companies])),
+        );
   }
 
   deleteCompany(id: string): Observable<void> {
@@ -53,7 +59,9 @@ export class CompaniesService {
       this.companiesState.update((companies) => companies.filter((company) => company.id !== id));
       return of(undefined).pipe(delay(200));
     }
-    return this.http.delete<void>(`${environment.apiBaseUrl}/companies/${id}`);
+    return this.http.delete<void>(`${environment.apiBaseUrl}/companies/${id}`).pipe(
+      tap(() => this.companiesState.update((companies) => companies.filter((company) => company.id !== id))),
+    );
   }
 
   scrapeNow(id: string): Observable<Company> {
@@ -90,6 +98,13 @@ export class CompaniesService {
     };
   }
 
+  private unwrapCompanies(response: BackendCompaniesResponse): BackendCompany[] {
+    if (Array.isArray(response)) {
+      return response;
+    }
+    return response.items ?? response.companies ?? response.data ?? [];
+  }
+
   private toBackendCompanyInput(company: Company): Record<string, unknown> {
     return {
       name: company.name,
@@ -106,3 +121,11 @@ export class CompaniesService {
     return (value.charAt(0).toUpperCase() + value.slice(1).toLowerCase()) as T;
   }
 }
+
+type BackendCompaniesResponse =
+  | BackendCompany[]
+  | {
+      items?: BackendCompany[];
+      companies?: BackendCompany[];
+      data?: BackendCompany[];
+    };

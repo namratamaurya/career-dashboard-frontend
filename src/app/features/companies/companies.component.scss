@@ -31,6 +31,21 @@ form {
   overflow-x: auto;
 }
 
+.state-message {
+  border: 1px solid var(--line, #dde4ee);
+  border-radius: 8px;
+  color: var(--muted, #667085);
+  margin: 16px 0 0;
+  padding: 18px;
+  text-align: center;
+}
+
+.state-message.error {
+  background: #fef2f2;
+  border-color: #fecaca;
+  color: #991b1b;
+}
+
 table {
   min-width: 780px;
   width: 100%;

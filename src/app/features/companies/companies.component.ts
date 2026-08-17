@@ -53,29 +53,37 @@ import { ToastService } from '../../core/services/toast.service';
           <mat-card-subtitle>{{ companies.companies().length }} portals watched</mat-card-subtitle>
         </mat-card-header>
         <mat-card-content>
-          <div class="table-wrap">
-            <table mat-table [dataSource]="companies.companies()">
-              <ng-container matColumnDef="company">
-                <th mat-header-cell *matHeaderCellDef>Company</th>
-                <td mat-cell *matCellDef="let company">
-                  <div class="company-cell"><img [src]="company.logoUrl" [alt]="company.name" /><strong>{{ company.name }}</strong></div>
-                </td>
-              </ng-container>
-              <ng-container matColumnDef="priority"><th mat-header-cell *matHeaderCellDef>Priority</th><td mat-cell *matCellDef="let company">{{ company.priority }}</td></ng-container>
-              <ng-container matColumnDef="tags"><th mat-header-cell *matHeaderCellDef>Tags</th><td mat-cell *matCellDef="let company">{{ company.tags.join(', ') }}</td></ng-container>
-              <ng-container matColumnDef="scraped"><th mat-header-cell *matHeaderCellDef>Last scraped</th><td mat-cell *matCellDef="let company">{{ company.lastScrapedAt | date: 'short' }} · {{ company.lastScrapeStatus }}</td></ng-container>
-              <ng-container matColumnDef="actions">
-                <th mat-header-cell *matHeaderCellDef>Actions</th>
-                <td mat-cell *matCellDef="let company">
-                  <button mat-icon-button type="button" aria-label="Edit company" (click)="edit(company)"><mat-icon>edit</mat-icon></button>
-                  <button mat-icon-button type="button" aria-label="Scrape now" (click)="scrape(company.id)" [disabled]="scrapingId() === company.id"><mat-icon>sync</mat-icon></button>
-                  <button mat-icon-button type="button" aria-label="Delete company" (click)="delete(company.id)"><mat-icon>delete</mat-icon></button>
-                </td>
-              </ng-container>
-              <tr mat-header-row *matHeaderRowDef="columns"></tr>
-              <tr mat-row *matRowDef="let row; columns: columns"></tr>
-            </table>
-          </div>
+          @if (loading()) {
+            <p class="state-message">Loading companies from the API...</p>
+          } @else if (loadError()) {
+            <p class="state-message error">{{ loadError() }}</p>
+          } @else if (!companies.companies().length) {
+            <p class="state-message">No companies are tracked yet. Add a company to start scraping career portals.</p>
+          } @else {
+            <div class="table-wrap">
+              <table mat-table [dataSource]="companies.companies()">
+                <ng-container matColumnDef="company">
+                  <th mat-header-cell *matHeaderCellDef>Company</th>
+                  <td mat-cell *matCellDef="let company">
+                    <div class="company-cell"><img [src]="company.logoUrl" [alt]="company.name" /><strong>{{ company.name }}</strong></div>
+                  </td>
+                </ng-container>
+                <ng-container matColumnDef="priority"><th mat-header-cell *matHeaderCellDef>Priority</th><td mat-cell *matCellDef="let company">{{ company.priority }}</td></ng-container>
+                <ng-container matColumnDef="tags"><th mat-header-cell *matHeaderCellDef>Tags</th><td mat-cell *matCellDef="let company">{{ company.tags.join(', ') || 'None' }}</td></ng-container>
+                <ng-container matColumnDef="scraped"><th mat-header-cell *matHeaderCellDef>Last scraped</th><td mat-cell *matCellDef="let company">{{ company.lastScrapedAt ? (company.lastScrapedAt | date: 'short') : 'Never' }} · {{ company.lastScrapeStatus }}</td></ng-container>
+                <ng-container matColumnDef="actions">
+                  <th mat-header-cell *matHeaderCellDef>Actions</th>
+                  <td mat-cell *matCellDef="let company">
+                    <button mat-icon-button type="button" aria-label="Edit company" (click)="edit(company)"><mat-icon>edit</mat-icon></button>
+                    <button mat-icon-button type="button" aria-label="Scrape now" (click)="scrape(company.id)" [disabled]="scrapingId() === company.id"><mat-icon>sync</mat-icon></button>
+                    <button mat-icon-button type="button" aria-label="Delete company" (click)="delete(company.id)"><mat-icon>delete</mat-icon></button>
+                  </td>
+                </ng-container>
+                <tr mat-header-row *matHeaderRowDef="columns"></tr>
+                <tr mat-row *matRowDef="let row; columns: columns"></tr>
+              </table>
+            </div>
+          }
         </mat-card-content>
       </mat-card>
     </section>
@@ -91,6 +99,8 @@ export class CompaniesComponent implements OnInit {
   readonly priorities = ['High', 'Medium', 'Low'];
   readonly editingId = signal<string | null>(null);
   readonly scrapingId = signal<string | null>(null);
+  readonly loading = signal(true);
+  readonly loadError = signal('');
   readonly form = this.fb.group({
     name: ['', Validators.required],
     careersUrl: ['', Validators.required],
@@ -100,7 +110,16 @@ export class CompaniesComponent implements OnInit {
   });
 
   ngOnInit(): void {
-    this.companies.loadCompanies().subscribe();
+    this.companies.loadCompanies().subscribe({
+      next: () => {
+        this.loading.set(false);
+        this.loadError.set('');
+      },
+      error: () => {
+        this.loading.set(false);
+        this.loadError.set('Could not load companies from the API. Sign in again if your session expired.');
+      },
+    });
   }
 
   save(): void {
@@ -108,6 +127,9 @@ export class CompaniesComponent implements OnInit {
     this.companies.saveCompany({ id: this.editingId() ?? undefined, ...value, tags: value.tags.split(',').map((tag) => tag.trim()).filter(Boolean) } as Partial<Company>).subscribe(() => {
       this.toast.show('Company saved.', 'success');
       this.reset();
+      this.loadError.set('');
+    }, () => {
+      this.toast.show('Could not save company.', 'error');
     });
   }
 
@@ -117,12 +139,22 @@ export class CompaniesComponent implements OnInit {
   }
 
   delete(id: string): void {
-    this.companies.deleteCompany(id).subscribe(() => this.toast.show('Company deleted.', 'success'));
+    this.companies.deleteCompany(id).subscribe({
+      next: () => this.toast.show('Company deleted.', 'success'),
+      error: () => this.toast.show('Could not delete company.', 'error'),
+    });
   }
 
   scrape(id: string): void {
     this.scrapingId.set(id);
-    this.companies.scrapeNow(id).subscribe({ next: () => this.toast.show('Scrape triggered.', 'success'), complete: () => this.scrapingId.set(null) });
+    this.companies.scrapeNow(id).subscribe({
+      next: () => this.toast.show('Scrape triggered.', 'success'),
+      error: () => {
+        this.toast.show('Could not trigger scrape.', 'error');
+        this.scrapingId.set(null);
+      },
+      complete: () => this.scrapingId.set(null),
+    });
   }
 
   reset(): void {
