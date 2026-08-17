@@ -80,17 +80,50 @@ import { ToastService } from '../../core/services/toast.service';
       <div class="summary-row">
         <article>
           <span>Total matches</span>
-          <strong>{{ jobs.filteredJobs().length }}</strong>
+          <strong>{{ jobs.jobs().length }}</strong>
         </article>
         <article>
           <span>New roles</span>
           <strong>{{ newCount() }}</strong>
         </article>
         <article>
-          <span>Interviews</span>
-          <strong>{{ interviewCount() }}</strong>
+          <span>Tracked sources</span>
+          <strong>{{ companies.companies().length }}</strong>
         </article>
       </div>
+
+      <section class="company-strip" aria-label="Companies used for fetching job postings">
+        <div class="section-heading">
+          <div>
+            <span>Tracked companies</span>
+            <strong>{{ companies.companies().length }} career portals feeding this dashboard</strong>
+          </div>
+        </div>
+        @if (companiesLoading()) {
+          <p class="source-state">Loading companies from the API...</p>
+        } @else if (companiesError()) {
+          <p class="source-state error">{{ companiesError() }}</p>
+        } @else if (!companies.companies().length) {
+          <p class="source-state">No companies are tracked yet. Add companies in the Companies section, then scrape them to populate job postings.</p>
+        } @else {
+          <div class="company-grid">
+            @for (company of visibleCompanies(); track company.id) {
+              <article class="company-tile">
+                <img [src]="company.logoUrl" [alt]="company.name + ' logo'" />
+                <div>
+                  <strong>{{ company.name }}</strong>
+                  <span>{{ company.stats?.activeJobs ?? 0 }} active jobs · {{ company.lastScrapeStatus }}</span>
+                </div>
+                <button mat-button type="button" (click)="filterCompany(company.name)">Jobs</button>
+                <a mat-flat-button color="primary" [href]="company.careersUrl" target="_blank" rel="noopener noreferrer">
+                  <mat-icon>open_in_new</mat-icon>
+                  Careers
+                </a>
+              </article>
+            }
+          </div>
+        }
+      </section>
 
       @if (loading()) {
         <div class="job-list">
@@ -98,6 +131,13 @@ import { ToastService } from '../../core/services/toast.service';
           <app-loading-skeleton />
           <app-loading-skeleton />
         </div>
+      } @else if (loadError()) {
+        <section class="empty-state error">
+          <mat-icon>cloud_off</mat-icon>
+          <h2>Could not load job postings</h2>
+          <p>{{ loadError() }}</p>
+          <button mat-flat-button color="primary" type="button" (click)="reloadJobs()">Try again</button>
+        </section>
       } @else if (jobs.pagedJobs().length) {
         <div class="job-list">
           @for (job of jobs.pagedJobs(); track job.id) {
@@ -107,8 +147,8 @@ import { ToastService } from '../../core/services/toast.service';
       } @else {
         <section class="empty-state">
           <mat-icon>search_off</mat-icon>
-          <h2>No jobs match these filters</h2>
-          <p>Try clearing a keyword, date, or company filter.</p>
+          <h2>No job postings yet</h2>
+          <p>Use the tracked company links above to apply directly, or trigger scrapes from the Companies page to populate job cards here.</p>
         </section>
       }
     </section>
@@ -121,9 +161,12 @@ export class DashboardComponent implements OnInit {
   readonly companies = inject(CompaniesService);
   private readonly toast = inject(ToastService);
   readonly loading = signal(true);
+  readonly loadError = signal('');
+  readonly companiesLoading = signal(true);
+  readonly companiesError = signal('');
   readonly jobTypes = ['Remote', 'Hybrid', 'Onsite', 'Unknown'];
-  readonly newCount = computed(() => this.jobs.filteredJobs().filter((job) => job.isNew).length);
-  readonly interviewCount = computed(() => this.jobs.jobs().filter((job) => job.status === 'interviewing').length);
+  readonly newCount = computed(() => this.jobs.jobs().filter((job) => job.isNew).length);
+  readonly visibleCompanies = computed(() => this.companies.companies().slice(0, 12));
   readonly form = this.fb.group({
     keyword: [''],
     location: [''],
@@ -135,23 +178,57 @@ export class DashboardComponent implements OnInit {
   });
 
   ngOnInit(): void {
-    this.companies.loadCompanies().subscribe();
-    this.jobs.loadJobs().subscribe({ complete: () => this.loading.set(false) });
+    this.loadCompanies();
+    this.reloadJobs();
   }
 
   applyFilters(): void {
     this.jobs.setFilters(this.form.getRawValue());
+    this.reloadJobs();
   }
 
   clearProfile(): void {
     this.jobs.clearProfileDefault();
     this.toast.show('Profile filter cleared.', 'info');
+    this.reloadJobs();
+  }
+
+  filterCompany(company: string): void {
+    this.form.patchValue({ company });
+    this.jobs.setFilters({ company });
+    this.reloadJobs();
   }
 
   updateStatus(jobId: string, status: ApplicationStatus): void {
     this.jobs.updateStatus(jobId, status).subscribe({
       next: () => this.toast.show('Application status updated.', 'success'),
       error: () => this.toast.show('Could not update status. Rolled back.', 'error'),
+    });
+  }
+
+  reloadJobs(): void {
+    this.loading.set(true);
+    this.loadError.set('');
+    this.jobs.loadJobs().subscribe({
+      next: () => this.loadError.set(''),
+      error: () => {
+        this.loadError.set('Sign in again if your session expired, or confirm the backend is reachable over HTTPS.');
+        this.loading.set(false);
+      },
+      complete: () => this.loading.set(false),
+    });
+  }
+
+  private loadCompanies(): void {
+    this.companiesLoading.set(true);
+    this.companiesError.set('');
+    this.companies.loadCompanies().subscribe({
+      next: () => this.companiesError.set(''),
+      error: () => {
+        this.companiesError.set('Could not load the companies used for fetching jobs. Sign in again if your session expired.');
+        this.companiesLoading.set(false);
+      },
+      complete: () => this.companiesLoading.set(false),
     });
   }
 }

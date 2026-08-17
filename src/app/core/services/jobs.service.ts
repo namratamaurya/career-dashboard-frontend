@@ -8,7 +8,7 @@ import { defaultFilters, mockJobs } from './mock-data';
 @Injectable({ providedIn: 'root' })
 export class JobsService {
   private readonly http = inject(HttpClient);
-  private readonly jobsState = signal<Job[]>(mockJobs);
+  private readonly jobsState = signal<Job[]>(environment.useMockApi ? mockJobs : []);
   private readonly filtersState = signal<JobFilters>({ ...defaultFilters });
   readonly pageSize = signal(6);
   readonly pageIndex = signal(0);
