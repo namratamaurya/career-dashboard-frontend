@@ -22,19 +22,19 @@ const EMAIL_PATTERN = /^[^\s@]+@[^\s@]+\.[^\s@]{2,}$/;
 
       <mat-card>
         <mat-card-header>
-          <mat-card-title>{{ signupOpen() ? 'Create dashboard account' : 'Sign in' }}</mat-card-title>
+          <mat-card-title>{{ authMode() === 'signup' ? 'Create dashboard account' : 'Sign in' }}</mat-card-title>
           <mat-card-subtitle>
             @if (checkingSignup()) {
               Checking signup availability...
-            } @else if (signupOpen()) {
+            } @else if (authMode() === 'signup') {
               {{ usersCreated() }} of {{ maxUsers() }} accounts created.
             } @else {
-              Signup is closed. Use one of the two approved accounts.
+              Use an account that has already completed signup.
             }
           </mat-card-subtitle>
         </mat-card-header>
         <mat-card-content>
-          @if (signupOpen()) {
+          @if (authMode() === 'signup') {
             <form [formGroup]="signupForm" (ngSubmit)="submit()">
               <mat-form-field appearance="outline">
                 <mat-label>Display name</mat-label>
@@ -77,6 +77,11 @@ const EMAIL_PATTERN = /^[^\s@]+@[^\s@]+\.[^\s@]{2,}$/;
               <button mat-flat-button color="primary" type="submit" [disabled]="signupForm.invalid || loading() || checkingSignup()">
                 {{ loading() ? 'Creating account...' : 'Create account' }}
               </button>
+
+              <p class="form-switch">
+                Already signed up?
+                <button mat-button type="button" (click)="showLogin()">Sign in</button>
+              </p>
             </form>
           } @else {
             <form [formGroup]="loginForm" (ngSubmit)="submit()">
@@ -103,6 +108,13 @@ const EMAIL_PATTERN = /^[^\s@]+@[^\s@]+\.[^\s@]{2,}$/;
               <button mat-flat-button color="primary" type="submit" [disabled]="loginForm.invalid || loading() || checkingSignup()">
                 {{ loading() ? 'Signing in...' : 'Sign in' }}
               </button>
+
+              @if (signupOpen()) {
+                <p class="form-switch">
+                  Need an account?
+                  <button mat-button type="button" (click)="showSignup()">Create account</button>
+                </p>
+              }
             </form>
           }
         </mat-card-content>
@@ -118,9 +130,10 @@ export class LoginComponent implements OnInit {
   readonly loading = signal(false);
   readonly checkingSignup = signal(true);
   readonly error = signal('');
-  readonly signupOpen = signal(false);
+  readonly signupOpen = signal(true);
   readonly usersCreated = signal(0);
   readonly maxUsers = signal(2);
+  readonly authMode = signal<'signup' | 'login'>('signup');
   readonly loginForm = this.fb.group({
     email: ['', [Validators.required, Validators.email, Validators.pattern(EMAIL_PATTERN)]],
     password: ['', [Validators.required, Validators.minLength(4)]],
@@ -139,17 +152,29 @@ export class LoginComponent implements OnInit {
         this.signupOpen.set(status.signupOpen);
         this.usersCreated.set(status.usersCreated);
         this.maxUsers.set(status.maxUsers);
+        this.authMode.set(status.signupOpen ? 'signup' : 'login');
         this.checkingSignup.set(false);
       },
       error: () => {
-        this.signupOpen.set(false);
+        this.signupOpen.set(true);
+        this.authMode.set('signup');
         this.checkingSignup.set(false);
       },
     });
   }
 
   submit(): void {
-    this.signupOpen() ? this.signup() : this.login();
+    this.authMode() === 'signup' ? this.signup() : this.login();
+  }
+
+  showLogin(): void {
+    this.authMode.set('login');
+    this.error.set('');
+  }
+
+  showSignup(): void {
+    this.authMode.set('signup');
+    this.error.set('');
   }
 
   private login(): void {
@@ -164,8 +189,8 @@ export class LoginComponent implements OnInit {
     this.loginForm.controls.email.setValue(email);
     this.auth.login(email, value.password).subscribe({
       next: () => this.router.navigate(['/dashboard']),
-      error: (error: Error) => {
-        this.error.set(error.message);
+      error: (error: unknown) => {
+        this.error.set(this.errorMessage(error));
         this.loading.set(false);
       },
     });
@@ -191,9 +216,14 @@ export class LoginComponent implements OnInit {
       })
       .subscribe({
         next: () => this.router.navigate(['/dashboard']),
-        error: (error: Error) => {
-          this.error.set(error.message);
+        error: (error: unknown) => {
+          const message = this.errorMessage(error);
+          this.error.set(message);
           this.loading.set(false);
+          if (this.isSignupClosedOrExistingEmail(error, message)) {
+            this.signupOpen.set(false);
+            this.authMode.set('login');
+          }
         },
       });
   }
@@ -207,5 +237,22 @@ export class LoginComponent implements OnInit {
 
   private normalizeEmail(value: string): string {
     return value.trim().toLowerCase();
+  }
+
+  private errorMessage(error: unknown): string {
+    if (this.isHttpErrorLike(error)) {
+      return error.error?.error?.message ?? error.error?.message ?? error.message ?? 'Something went wrong. Please try again.';
+    }
+    return error instanceof Error ? error.message : 'Something went wrong. Please try again.';
+  }
+
+  private isSignupClosedOrExistingEmail(error: unknown, message: string): boolean {
+    const normalized = message.toLowerCase();
+    const status = this.isHttpErrorLike(error) ? error.status : 0;
+    return status === 403 || status === 409 || normalized.includes('signup') || normalized.includes('closed') || normalized.includes('exist');
+  }
+
+  private isHttpErrorLike(error: unknown): error is { status: number; message?: string; error?: { message?: string; error?: { message?: string } } } {
+    return typeof error === 'object' && error !== null && 'status' in error;
   }
 }

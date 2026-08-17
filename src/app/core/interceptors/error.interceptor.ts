@@ -12,6 +12,10 @@ export const errorInterceptor: HttpInterceptorFn = (request, next) => {
 
   return next(request).pipe(
     catchError((error: HttpErrorResponse) => {
+      if (request.url.includes('/auth/signup-status')) {
+        return throwError(() => error);
+      }
+
       if (error.status === 401) {
         auth.logout();
         router.navigate(['/login']);
