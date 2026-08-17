@@ -20,12 +20,12 @@ import { ToastService } from '../../core/services/toast.service';
       <mat-card>
         <mat-card-header>
           <mat-card-title>{{ editingId() ? 'Edit company' : 'Add company' }}</mat-card-title>
-          <mat-card-subtitle>Track career portals and scrape priority.</mat-card-subtitle>
+          <mat-card-subtitle>Track career portals shared by both dashboard users.</mat-card-subtitle>
         </mat-card-header>
         <mat-card-content>
           <form [formGroup]="form" (ngSubmit)="save()">
             <mat-form-field appearance="outline"><mat-label>Name</mat-label><input matInput formControlName="name" /></mat-form-field>
-            <mat-form-field appearance="outline"><mat-label>Career URL</mat-label><input matInput formControlName="careersUrl" /></mat-form-field>
+            <mat-form-field appearance="outline"><mat-label>Career portal URL</mat-label><input matInput formControlName="careersUrl" /></mat-form-field>
             <mat-form-field appearance="outline">
               <mat-label>ATS type</mat-label>
               <mat-select formControlName="atsType">
@@ -39,6 +39,7 @@ import { ToastService } from '../../core/services/toast.service';
               </mat-select>
             </mat-form-field>
             <mat-form-field appearance="outline"><mat-label>Tags</mat-label><input matInput formControlName="tags" placeholder="AI, frontend" /></mat-form-field>
+            <mat-form-field appearance="outline"><mat-label>Notes</mat-label><textarea matInput formControlName="notes" rows="3"></textarea></mat-form-field>
             <div class="form-actions">
               <button mat-flat-button color="primary" type="submit" [disabled]="form.invalid">Save company</button>
               <button mat-button type="button" (click)="reset()">Clear</button>
@@ -65,12 +66,51 @@ import { ToastService } from '../../core/services/toast.service';
                 <ng-container matColumnDef="company">
                   <th mat-header-cell *matHeaderCellDef>Company</th>
                   <td mat-cell *matCellDef="let company">
-                    <div class="company-cell"><img [src]="company.logoUrl" [alt]="company.name" /><strong>{{ company.name }}</strong></div>
+                    <div class="company-cell">
+                      <img [src]="company.logoUrl" [alt]="company.name" />
+                      <div>
+                        <strong>{{ company.name }}</strong>
+                        <a [href]="company.careersUrl" target="_blank" rel="noreferrer">{{ company.atsType }} portal</a>
+                      </div>
+                    </div>
                   </td>
                 </ng-container>
                 <ng-container matColumnDef="priority"><th mat-header-cell *matHeaderCellDef>Priority</th><td mat-cell *matCellDef="let company">{{ company.priority }}</td></ng-container>
                 <ng-container matColumnDef="tags"><th mat-header-cell *matHeaderCellDef>Tags</th><td mat-cell *matCellDef="let company">{{ company.tags.join(', ') || 'None' }}</td></ng-container>
-                <ng-container matColumnDef="scraped"><th mat-header-cell *matHeaderCellDef>Last scraped</th><td mat-cell *matCellDef="let company">{{ company.lastScrapedAt ? (company.lastScrapedAt | date: 'short') : 'Never' }} · {{ company.lastScrapeStatus }}</td></ng-container>
+                <ng-container matColumnDef="jobs">
+                  <th mat-header-cell *matHeaderCellDef>Jobs</th>
+                  <td mat-cell *matCellDef="let company">
+                    <div class="metric">
+                      <strong>{{ company.stats?.activeJobs ?? 0 }}</strong>
+                      <span>active / {{ company.stats?.totalJobs ?? 0 }} total</span>
+                    </div>
+                  </td>
+                </ng-container>
+                <ng-container matColumnDef="scraped">
+                  <th mat-header-cell *matHeaderCellDef>Scrape status</th>
+                  <td mat-cell *matCellDef="let company">
+                    <div class="scrape-cell">
+                      <span
+                        class="status-pill"
+                        [class.success]="company.lastScrapeStatus === 'success'"
+                        [class.failed]="company.lastScrapeStatus === 'failed'"
+                        [class.never]="company.lastScrapeStatus === 'never'"
+                        [class.skipped]="company.lastScrapeStatus === 'skipped'"
+                        [class.running]="company.lastScrapeStatus === 'running'"
+                        [class.queued]="company.lastScrapeStatus === 'queued'"
+                      >
+                        {{ company.lastScrapeStatus }}
+                      </span>
+                      <small>{{ company.lastScrapedAt ? (company.lastScrapedAt | date: 'short') : 'Never scraped' }}</small>
+                      @if (company.stats?.scrapeRuns) {
+                        <small>{{ company.stats?.scrapeRuns }} scrape runs</small>
+                      }
+                      @if (company.lastScrapeError) {
+                        <small class="error-text">{{ company.lastScrapeError }}</small>
+                      }
+                    </div>
+                  </td>
+                </ng-container>
                 <ng-container matColumnDef="actions">
                   <th mat-header-cell *matHeaderCellDef>Actions</th>
                   <td mat-cell *matCellDef="let company">
@@ -94,8 +134,8 @@ export class CompaniesComponent implements OnInit {
   private readonly fb = inject(NonNullableFormBuilder);
   readonly companies = inject(CompaniesService);
   private readonly toast = inject(ToastService);
-  readonly columns = ['company', 'priority', 'tags', 'scraped', 'actions'];
-  readonly atsTypes = ['Greenhouse', 'Lever', 'Workday', 'Custom', 'Unknown'];
+  readonly columns = ['company', 'priority', 'tags', 'jobs', 'scraped', 'actions'];
+  readonly atsTypes = ['Unknown', 'Greenhouse', 'Lever', 'Workday', 'Custom'];
   readonly priorities = ['High', 'Medium', 'Low'];
   readonly editingId = signal<string | null>(null);
   readonly scrapingId = signal<string | null>(null);
@@ -104,9 +144,10 @@ export class CompaniesComponent implements OnInit {
   readonly form = this.fb.group({
     name: ['', Validators.required],
     careersUrl: ['', Validators.required],
-    atsType: ['Greenhouse'],
+    atsType: ['Unknown'],
     priority: ['Medium'],
     tags: [''],
+    notes: [''],
   });
 
   ngOnInit(): void {
@@ -124,18 +165,23 @@ export class CompaniesComponent implements OnInit {
 
   save(): void {
     const value = this.form.getRawValue();
-    this.companies.saveCompany({ id: this.editingId() ?? undefined, ...value, tags: value.tags.split(',').map((tag) => tag.trim()).filter(Boolean) } as Partial<Company>).subscribe(() => {
-      this.toast.show('Company saved.', 'success');
-      this.reset();
-      this.loadError.set('');
-    }, () => {
-      this.toast.show('Could not save company.', 'error');
-    });
+    this.companies
+      .saveCompany({ id: this.editingId() ?? undefined, ...value, tags: this.splitTags(value.tags) } as Partial<Company>)
+      .subscribe({
+        next: () => {
+          this.toast.show('Company saved.', 'success');
+          this.reset();
+          this.loadError.set('');
+        },
+        error: () => {
+          this.toast.show('Could not save company. Check the URL and required fields.', 'error');
+        },
+      });
   }
 
   edit(company: Company): void {
     this.editingId.set(company.id);
-    this.form.patchValue({ ...company, tags: company.tags.join(', ') });
+    this.form.patchValue({ ...company, tags: company.tags.join(', '), notes: company.notes ?? '' });
   }
 
   delete(id: string): void {
@@ -159,6 +205,13 @@ export class CompaniesComponent implements OnInit {
 
   reset(): void {
     this.editingId.set(null);
-    this.form.reset({ name: '', careersUrl: '', atsType: 'Greenhouse', priority: 'Medium', tags: '' });
+    this.form.reset({ name: '', careersUrl: '', atsType: 'Unknown', priority: 'Medium', tags: '', notes: '' });
+  }
+
+  private splitTags(tags: string): string[] {
+    return tags
+      .split(',')
+      .map((tag) => tag.trim())
+      .filter(Boolean);
   }
 }

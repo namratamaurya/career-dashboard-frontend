@@ -96,6 +96,17 @@ export interface Company {
   tags: string[];
   lastScrapedAt: string;
   lastScrapeStatus: 'never' | 'success' | 'failed' | 'skipped' | 'running' | 'queued';
+  lastScrapeError?: string;
+  notes?: string;
+  stats?: CompanyStats;
+}
+
+export interface CompanyStats {
+  totalJobs: number;
+  activeJobs: number;
+  inactiveJobs: number;
+  scrapeRuns: number;
+  latestJobSeenAt: string | null;
 }
 
 export interface BackendCompany {
@@ -111,6 +122,12 @@ export interface BackendCompany {
   lastScrapedAt: string | null;
   lastScrapeStatus: 'NEVER' | 'SUCCESS' | 'FAILED' | 'SKIPPED';
   lastScrapeError?: string | null;
+}
+
+export interface BackendCompanyDetails extends BackendCompany {
+  createdAt?: string;
+  updatedAt?: string;
+  stats?: CompanyStats;
 }
 
 export interface BackendJobPosting {

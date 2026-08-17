@@ -1,8 +1,8 @@
 import { HttpClient } from '@angular/common/http';
 import { Injectable, inject, signal } from '@angular/core';
-import { Observable, delay, map, of, tap } from 'rxjs';
+import { Observable, delay, map, of, switchMap, tap } from 'rxjs';
 import { environment } from '../../../environments/environment';
-import { BackendCompany, Company } from '../models/career.models';
+import { BackendCompany, BackendCompanyDetails, Company } from '../models/career.models';
 import { mockCompanies } from './mock-data';
 
 @Injectable({ providedIn: 'root' })
@@ -15,7 +15,7 @@ export class CompaniesService {
     if (environment.useMockApi) {
       return of(this.companiesState()).pipe(delay(250));
     }
-    return this.http.get<BackendCompaniesResponse>(`${environment.apiBaseUrl}/companies`).pipe(
+    return this.http.get<BackendCompaniesResponse>(`${environment.apiBaseUrl}/companies/details`).pipe(
       map((response) => this.unwrapCompanies(response).map((company) => this.fromBackendCompany(company))),
       tap((companies) => this.companiesState.set(companies)),
     );
@@ -45,12 +45,14 @@ export class CompaniesService {
     const input = this.toBackendCompanyInput(saved);
     return company.id
       ? this.http.patch<BackendCompany>(`${environment.apiBaseUrl}/companies/${company.id}`, input).pipe(
-          map((response) => this.fromBackendCompany(response)),
+          map((response) => this.mergeCompanyDetails(this.fromBackendCompany(response))),
           tap((updated) => this.companiesState.update((companies) => companies.map((item) => (item.id === updated.id ? updated : item)))),
+          switchMap((updated) => this.loadCompanies().pipe(map(() => updated))),
         )
       : this.http.post<BackendCompany>(`${environment.apiBaseUrl}/companies`, input).pipe(
           map((response) => this.fromBackendCompany(response)),
           tap((created) => this.companiesState.update((companies) => [created, ...companies])),
+          switchMap((created) => this.loadCompanies().pipe(map(() => created))),
         );
   }
 
@@ -61,6 +63,7 @@ export class CompaniesService {
     }
     return this.http.delete<void>(`${environment.apiBaseUrl}/companies/${id}`).pipe(
       tap(() => this.companiesState.update((companies) => companies.filter((company) => company.id !== id))),
+      switchMap(() => this.loadCompanies().pipe(map(() => undefined))),
     );
   }
 
@@ -81,10 +84,11 @@ export class CompaniesService {
     return this.http.post<unknown>(`${environment.apiBaseUrl}/companies/${id}/scrape-now`, {}).pipe(
       map(() => ({ ...this.companiesState().find((company) => company.id === id)!, lastScrapeStatus: 'queued' as const })),
       tap((company) => this.companiesState.update((companies) => companies.map((item) => (item.id === id ? company : item)))),
+      switchMap((company) => this.loadCompanies().pipe(map(() => company))),
     );
   }
 
-  private fromBackendCompany(company: BackendCompany): Company {
+  private fromBackendCompany(company: BackendCompanyDetails): Company {
     return {
       id: company.id,
       name: company.name,
@@ -95,6 +99,9 @@ export class CompaniesService {
       tags: company.tags ?? [],
       lastScrapedAt: company.lastScrapedAt ?? '',
       lastScrapeStatus: company.lastScrapeStatus.toLowerCase() as Company['lastScrapeStatus'],
+      lastScrapeError: company.lastScrapeError ?? undefined,
+      notes: company.notes ?? undefined,
+      stats: company.stats,
     };
   }
 
@@ -106,15 +113,28 @@ export class CompaniesService {
   }
 
   private toBackendCompanyInput(company: Company): Record<string, unknown> {
-    return {
+    const input: Record<string, unknown> = {
       name: company.name,
       portalUrl: company.careersUrl,
-      atsType: company.atsType.toUpperCase(),
-      logoUrl: company.logoUrl,
       tags: company.tags,
       priority: company.priority.toUpperCase(),
       scrapeIntervalMinutes: 720,
     };
+    if (company.atsType !== 'Unknown') {
+      input['atsType'] = company.atsType.toUpperCase();
+    }
+    if (company.logoUrl && !company.logoUrl.includes('api.dicebear.com')) {
+      input['logoUrl'] = company.logoUrl;
+    }
+    if (company.notes) {
+      input['notes'] = company.notes;
+    }
+    return input;
+  }
+
+  private mergeCompanyDetails(company: Company): Company {
+    const existing = this.companiesState().find((item) => item.id === company.id);
+    return { ...existing, ...company, stats: company.stats ?? existing?.stats };
   }
 
   private titleEnum<T extends string>(value: string): T {
@@ -123,9 +143,9 @@ export class CompaniesService {
 }
 
 type BackendCompaniesResponse =
-  | BackendCompany[]
+  | BackendCompanyDetails[]
   | {
-      items?: BackendCompany[];
-      companies?: BackendCompany[];
-      data?: BackendCompany[];
+      items?: BackendCompanyDetails[];
+      companies?: BackendCompanyDetails[];
+      data?: BackendCompanyDetails[];
     };
