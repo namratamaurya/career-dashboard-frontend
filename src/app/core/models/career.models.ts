@@ -143,15 +143,26 @@ export interface BackendJobPosting {
   lastSeenAt: string;
   isActive: boolean;
   company: BackendCompany;
+  applications?: BackendApplication[];
   applicationStatus?: 'NOT_APPLIED' | 'APPLIED' | 'INTERVIEWING' | 'REJECTED' | 'OFFER';
   status?: 'NOT_APPLIED' | 'APPLIED' | 'INTERVIEWING' | 'REJECTED' | 'OFFER';
   whyThisFits?: string;
+}
+
+export interface BackendApplication {
+  id: string;
+  jobPostingId: string;
+  status: 'NOT_APPLIED' | 'APPLIED' | 'INTERVIEWING' | 'REJECTED' | 'OFFER';
+  appliedAt?: string | null;
+  notes?: string | null;
+  resumeVersion?: string | null;
 }
 
 export interface BackendSavedSearch {
   id: string;
   name: string;
   filters?: Record<string, unknown>;
+  filtersJson?: Record<string, unknown>;
   notificationFrequency?: 'INSTANT' | 'DAILY' | 'WEEKLY' | 'NONE';
   lastNotifiedAt?: string;
 }

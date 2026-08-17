@@ -104,6 +104,7 @@ export class JobsService {
 
   private fromBackendJob(job: BackendJobPosting): Job {
     const postedDate = job.postedAt ?? job.firstSeenAt ?? job.lastSeenAt;
+    const currentApplication = job.applications?.[0];
     return {
       id: job.id,
       title: job.title,
@@ -114,7 +115,7 @@ export class JobsService {
       jobType: this.fromBackendJobType(job.jobType),
       postedDate: postedDate ? postedDate.slice(0, 10) : '',
       applyUrl: job.url,
-      status: this.fromBackendStatus(job.applicationStatus ?? job.status ?? 'NOT_APPLIED'),
+      status: this.fromBackendStatus(currentApplication?.status ?? job.applicationStatus ?? job.status ?? 'NOT_APPLIED'),
       tags: [job.department, ...(job.company.tags ?? [])].filter(Boolean) as string[],
       isNew: Boolean(job.firstSeenAt && new Date(job.firstSeenAt).getTime() > Date.now() - 7 * 24 * 60 * 60 * 1000),
       whyThisFits: job.whyThisFits,

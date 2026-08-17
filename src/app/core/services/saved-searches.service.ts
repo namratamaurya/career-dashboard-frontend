@@ -8,7 +8,7 @@ import { defaultFilters, mockSavedSearches } from './mock-data';
 @Injectable({ providedIn: 'root' })
 export class SavedSearchesService {
   private readonly http = inject(HttpClient);
-  private readonly searchesState = signal<SavedSearch[]>(mockSavedSearches);
+  private readonly searchesState = signal<SavedSearch[]>(environment.useMockApi ? mockSavedSearches : []);
   readonly searches = this.searchesState.asReadonly();
 
   loadSavedSearches(): Observable<SavedSearch[]> {
@@ -45,10 +45,6 @@ export class SavedSearchesService {
   }
 
   update(search: SavedSearch): Observable<SavedSearch> {
-    if (!environment.useMockApi) {
-      this.searchesState.update((searches) => searches.map((item) => (item.id === search.id ? search : item)));
-      return of(search);
-    }
     this.searchesState.update((searches) => searches.map((item) => (item.id === search.id ? search : item)));
     return of(search).pipe(delay(250));
   }
@@ -75,7 +71,7 @@ export class SavedSearchesService {
   }
 
   private fromBackendSearch(search: BackendSavedSearch): SavedSearch {
-    const filters = search.filters ?? {};
+    const filters = search.filters ?? search.filtersJson ?? {};
     return {
       id: search.id,
       name: search.name,
