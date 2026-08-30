@@ -103,7 +103,7 @@
 
 .company-tile {
   display: grid;
-  grid-template-columns: 38px minmax(0, 1fr) auto auto;
+  grid-template-columns: 38px minmax(0, 1fr) auto;
   align-items: center;
   gap: 10px;
   border: 1px solid var(--line, #dde4ee);
@@ -165,8 +165,7 @@
     grid-template-columns: 38px minmax(0, 1fr);
   }
 
-  .company-tile button,
-  .company-tile a {
+  .company-tile button {
     grid-column: 1 / -1;
   }
 }

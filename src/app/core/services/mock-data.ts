@@ -141,7 +141,7 @@ export const defaultFilters = {
   dateFrom: '',
   dateTo: '',
   newSinceLastVisit: false,
-  profileDefault: true,
+  profileDefault: false,
 };
 
 export const mockSavedSearches: SavedSearch[] = [

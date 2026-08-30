@@ -115,10 +115,6 @@ import { ToastService } from '../../core/services/toast.service';
                   <span>{{ company.stats?.activeJobs ?? 0 }} active jobs · {{ company.lastScrapeStatus }}</span>
                 </div>
                 <button mat-button type="button" (click)="filterCompany(company.name)">Jobs</button>
-                <a mat-flat-button color="primary" [href]="company.careersUrl" target="_blank" rel="noopener noreferrer">
-                  <mat-icon>open_in_new</mat-icon>
-                  Careers
-                </a>
               </article>
             }
           </div>
@@ -148,7 +144,7 @@ import { ToastService } from '../../core/services/toast.service';
         <section class="empty-state">
           <mat-icon>search_off</mat-icon>
           <h2>No job postings yet</h2>
-          <p>Use the tracked company links above to apply directly, or trigger scrapes from the Companies page to populate job cards here.</p>
+          <p>Trigger scrapes from the Companies page to populate job cards here. The Apply button appears only on job listings and opens the specific job description page.</p>
         </section>
       }
     </section>
