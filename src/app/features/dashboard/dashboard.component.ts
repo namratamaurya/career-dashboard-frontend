@@ -86,7 +86,7 @@ import { debounceTime } from 'rxjs';
       <div class="summary-row">
         <article>
           <span>Total matches</span>
-          <strong>{{ jobs.jobs().length }}</strong>
+          <strong>{{ jobs.total() }}</strong>
         </article>
         <article>
           <span>New roles</span>
@@ -145,6 +145,13 @@ import { debounceTime } from 'rxjs';
           @for (job of jobs.pagedJobs(); track job.id) {
             <app-job-card [job]="job" (statusChange)="updateStatus(job.id, $event)" />
           }
+        </div>
+        <div class="pager">
+          <span>Page {{ jobs.currentPage() }} of {{ jobs.totalPages() }}</span>
+          <div>
+            <button mat-button type="button" [disabled]="jobs.currentPage() <= 1" (click)="previousPage()">Previous</button>
+            <button mat-flat-button color="primary" type="button" [disabled]="jobs.currentPage() >= jobs.totalPages()" (click)="nextPage()">Next</button>
+          </div>
         </div>
       } @else {
         <section class="empty-state">
@@ -218,6 +225,16 @@ export class DashboardComponent implements OnInit {
   filterCompany(company: string): void {
     this.form.patchValue({ company }, { emitEvent: false });
     this.applyFilters();
+  }
+
+  nextPage(): void {
+    this.jobs.nextPage();
+    this.reloadJobs();
+  }
+
+  previousPage(): void {
+    this.jobs.previousPage();
+    this.reloadJobs();
   }
 
   updateStatus(jobId: string, status: ApplicationStatus): void {

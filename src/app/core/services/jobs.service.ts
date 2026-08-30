@@ -10,27 +10,43 @@ export class JobsService {
   private readonly http = inject(HttpClient);
   private readonly jobsState = signal<Job[]>(environment.useMockApi ? mockJobs : []);
   private readonly filtersState = signal<JobFilters>({ ...defaultFilters });
-  readonly pageSize = signal(6);
+  readonly pageSize = signal(25);
   readonly pageIndex = signal(0);
+  readonly total = signal(environment.useMockApi ? mockJobs.length : 0);
+  readonly totalPages = signal(1);
 
   readonly jobs = this.jobsState.asReadonly();
   readonly filters = this.filtersState.asReadonly();
+  readonly currentPage = computed(() => this.pageIndex() + 1);
   readonly queryParams = computed(() => this.serializeFilters(this.filtersState()));
   readonly filteredJobs = computed(() =>
     environment.useMockApi ? this.applyFilters(this.jobsState(), this.filtersState()) : this.jobsState(),
   );
   readonly pagedJobs = computed(() => {
+    if (!environment.useMockApi) {
+      return this.filteredJobs();
+    }
     const start = this.pageIndex() * this.pageSize();
     return this.filteredJobs().slice(start, start + this.pageSize());
   });
 
   loadJobs(): Observable<Job[]> {
     if (environment.useMockApi) {
-      return of(this.jobsState()).pipe(delay(300));
+      return of(this.filteredJobs()).pipe(
+        delay(300),
+        tap((jobs) => {
+          this.total.set(jobs.length);
+          this.totalPages.set(Math.max(1, Math.ceil(jobs.length / this.pageSize())));
+        }),
+      );
     }
     return this.http
       .get<PaginatedJobs>(`${environment.apiBaseUrl}/jobs`, { params: this.queryParams() })
       .pipe(
+        tap((response) => {
+          this.total.set(response.total);
+          this.totalPages.set(Math.max(1, response.totalPages));
+        }),
         map((response) => response.items.map((job) => this.fromBackendJob(job))),
         tap((jobs) => this.jobsState.set(jobs)),
       );
@@ -43,6 +59,18 @@ export class JobsService {
 
   clearProfileDefault(): void {
     this.setFilters({ profileDefault: false });
+  }
+
+  nextPage(): void {
+    if (this.currentPage() < this.totalPages()) {
+      this.pageIndex.update((page) => page + 1);
+    }
+  }
+
+  previousPage(): void {
+    if (this.pageIndex() > 0) {
+      this.pageIndex.update((page) => page - 1);
+    }
   }
 
   updateStatus(jobId: string, status: ApplicationStatus): Observable<Job> {

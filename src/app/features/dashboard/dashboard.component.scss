@@ -101,6 +101,23 @@
   color: #991b1b;
 }
 
+.pager {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 12px;
+  border: 1px solid var(--line, #dde4ee);
+  border-radius: 8px;
+  background: var(--panel, #fff);
+  color: var(--muted, #667085);
+  padding: 12px 16px;
+}
+
+.pager div {
+  display: flex;
+  gap: 8px;
+}
+
 .company-tile {
   display: grid;
   grid-template-columns: 38px minmax(0, 1fr) auto;
@@ -167,5 +184,15 @@
 
   .company-tile button {
     grid-column: 1 / -1;
+  }
+
+  .pager {
+    align-items: stretch;
+    flex-direction: column;
+  }
+
+  .pager div {
+    display: grid;
+    grid-template-columns: 1fr 1fr;
   }
 }
