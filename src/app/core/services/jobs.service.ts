@@ -144,6 +144,7 @@ export class JobsService {
 
   private fromBackendJob(job: BackendJobPosting): Job {
     const postedDate = job.postedAt ?? job.firstSeenAt ?? job.lastSeenAt;
+    const postedDateSource = job.postedAt ? 'posted' : 'seen';
     const currentApplication = job.applications?.[0];
     return {
       id: job.id,
@@ -154,6 +155,7 @@ export class JobsService {
       location: job.location ?? 'Unknown',
       jobType: this.fromBackendJobType(job.jobType),
       postedDate: postedDate ? postedDate.slice(0, 10) : '',
+      postedDateSource,
       applyUrl: job.url,
       status: this.fromBackendStatus(currentApplication?.status ?? job.applicationStatus ?? job.status ?? 'NOT_APPLIED'),
       tags: [job.department, ...(job.company.tags ?? [])].filter(Boolean) as string[],

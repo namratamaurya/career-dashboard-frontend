@@ -79,6 +79,7 @@ export interface Job {
   location: string;
   jobType: JobType;
   postedDate: string;
+  postedDateSource: 'posted' | 'seen';
   applyUrl: string;
   status: ApplicationStatus;
   tags: string[];

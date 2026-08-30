@@ -28,7 +28,11 @@ import { StatusBadgeComponent } from '../status-badge/status-badge.component';
       <div class="details">
         <span><mat-icon>location_on</mat-icon>{{ job().location }}</span>
         <span><mat-icon>work</mat-icon>{{ job().jobType }}</span>
-        <span><mat-icon>event</mat-icon>{{ job().postedDate | date: 'mediumDate' }}</span>
+        <span>
+          <mat-icon>event</mat-icon>
+          {{ job().postedDateSource === 'posted' ? 'Posted' : 'Seen' }}
+          {{ job().postedDate ? (job().postedDate | date: 'mediumDate') : 'date unavailable' }}
+        </span>
       </div>
 
       <div class="tags">
