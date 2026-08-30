@@ -16,7 +16,9 @@ export class JobsService {
   readonly jobs = this.jobsState.asReadonly();
   readonly filters = this.filtersState.asReadonly();
   readonly queryParams = computed(() => this.serializeFilters(this.filtersState()));
-  readonly filteredJobs = computed(() => this.applyFilters(this.jobsState(), this.filtersState()));
+  readonly filteredJobs = computed(() =>
+    environment.useMockApi ? this.applyFilters(this.jobsState(), this.filtersState()) : this.jobsState(),
+  );
   readonly pagedJobs = computed(() => {
     const start = this.pageIndex() * this.pageSize();
     return this.filteredJobs().slice(start, start + this.pageSize());
@@ -94,7 +96,7 @@ export class JobsService {
       const keywordMatch = !filters.keyword || haystack.includes(filters.keyword.toLowerCase());
       const locationMatch = !filters.location || job.location.toLowerCase().includes(filters.location.toLowerCase());
       const typeMatch = !filters.jobType || job.jobType === filters.jobType;
-      const companyMatch = !filters.company || job.company === filters.company;
+      const companyMatch = !filters.company || job.company.toLowerCase().includes(filters.company.toLowerCase());
       const newMatch = !filters.newSinceLastVisit || job.isNew;
       const fromMatch = !filters.dateFrom || job.postedDate >= filters.dateFrom;
       const toMatch = !filters.dateTo || job.postedDate <= filters.dateTo;

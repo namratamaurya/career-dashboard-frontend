@@ -68,6 +68,10 @@ import { ToastService } from '../../core/services/toast.service';
           <mat-icon>filter_alt</mat-icon>
           Apply
         </button>
+        <button mat-button type="button" (click)="clearFilters()">
+          <mat-icon>restart_alt</mat-icon>
+          Reset
+        </button>
       </form>
 
       @if (jobs.filters().profileDefault) {
@@ -143,8 +147,8 @@ import { ToastService } from '../../core/services/toast.service';
       } @else {
         <section class="empty-state">
           <mat-icon>search_off</mat-icon>
-          <h2>No job postings yet</h2>
-          <p>Trigger scrapes from the Companies page to populate job cards here. The Apply button appears only on job listings and opens the specific job description page.</p>
+          <h2>No matching job postings</h2>
+          <p>Reset the filters or pick a different company. Apply buttons appear only on job listings and open the specific job description page.</p>
         </section>
       }
     </section>
@@ -186,6 +190,20 @@ export class DashboardComponent implements OnInit {
   clearProfile(): void {
     this.jobs.clearProfileDefault();
     this.toast.show('Profile filter cleared.', 'info');
+    this.reloadJobs();
+  }
+
+  clearFilters(): void {
+    this.form.reset({
+      keyword: '',
+      location: '',
+      jobType: '',
+      company: '',
+      dateFrom: '',
+      dateTo: '',
+      newSinceLastVisit: false,
+    });
+    this.jobs.setFilters(this.form.getRawValue());
     this.reloadJobs();
   }
 
