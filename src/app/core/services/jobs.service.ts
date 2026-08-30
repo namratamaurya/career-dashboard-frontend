@@ -10,6 +10,7 @@ export class JobsService {
   private readonly http = inject(HttpClient);
   private readonly jobsState = signal<Job[]>(environment.useMockApi ? mockJobs : []);
   private readonly filtersState = signal<JobFilters>({ ...defaultFilters });
+  private requestVersion = 0;
   readonly pageSize = signal(25);
   readonly pageIndex = signal(0);
   readonly total = signal(environment.useMockApi ? mockJobs.length : 0);
@@ -31,12 +32,15 @@ export class JobsService {
   });
 
   loadJobs(): Observable<Job[]> {
+    const requestVersion = ++this.requestVersion;
     if (environment.useMockApi) {
       return of(this.filteredJobs()).pipe(
         delay(300),
         tap((jobs) => {
-          this.total.set(jobs.length);
-          this.totalPages.set(Math.max(1, Math.ceil(jobs.length / this.pageSize())));
+          if (requestVersion === this.requestVersion) {
+            this.total.set(jobs.length);
+            this.totalPages.set(Math.max(1, Math.ceil(jobs.length / this.pageSize())));
+          }
         }),
       );
     }
@@ -44,11 +48,17 @@ export class JobsService {
       .get<PaginatedJobs>(`${environment.apiBaseUrl}/jobs`, { params: this.queryParams() })
       .pipe(
         tap((response) => {
-          this.total.set(response.total);
-          this.totalPages.set(Math.max(1, response.totalPages));
+          if (requestVersion === this.requestVersion) {
+            this.total.set(response.total);
+            this.totalPages.set(Math.max(1, response.totalPages));
+          }
         }),
         map((response) => response.items.map((job) => this.fromBackendJob(job))),
-        tap((jobs) => this.jobsState.set(jobs)),
+        tap((jobs) => {
+          if (requestVersion === this.requestVersion) {
+            this.jobsState.set(jobs);
+          }
+        }),
       );
   }
 
