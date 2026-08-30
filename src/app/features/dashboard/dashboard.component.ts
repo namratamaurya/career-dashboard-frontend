@@ -1,4 +1,5 @@
-import { Component, OnInit, computed, inject, signal } from '@angular/core';
+import { Component, DestroyRef, OnInit, computed, inject, signal } from '@angular/core';
+import { takeUntilDestroyed } from '@angular/core/rxjs-interop';
 import { ReactiveFormsModule, NonNullableFormBuilder } from '@angular/forms';
 import { MatButtonModule } from '@angular/material/button';
 import { MatCheckboxModule } from '@angular/material/checkbox';
@@ -12,6 +13,7 @@ import { ApplicationStatus } from '../../core/models/career.models';
 import { JobsService } from '../../core/services/jobs.service';
 import { CompaniesService } from '../../core/services/companies.service';
 import { ToastService } from '../../core/services/toast.service';
+import { debounceTime } from 'rxjs';
 
 @Component({
   selector: 'app-dashboard',
@@ -157,6 +159,7 @@ import { ToastService } from '../../core/services/toast.service';
 })
 export class DashboardComponent implements OnInit {
   private readonly fb = inject(NonNullableFormBuilder);
+  private readonly destroyRef = inject(DestroyRef);
   readonly jobs = inject(JobsService);
   readonly companies = inject(CompaniesService);
   private readonly toast = inject(ToastService);
@@ -178,6 +181,9 @@ export class DashboardComponent implements OnInit {
   });
 
   ngOnInit(): void {
+    this.form.valueChanges.pipe(debounceTime(350), takeUntilDestroyed(this.destroyRef)).subscribe(() => {
+      this.applyFilters();
+    });
     this.loadCompanies();
     this.reloadJobs();
   }
@@ -194,23 +200,24 @@ export class DashboardComponent implements OnInit {
   }
 
   clearFilters(): void {
-    this.form.reset({
-      keyword: '',
-      location: '',
-      jobType: '',
-      company: '',
-      dateFrom: '',
-      dateTo: '',
-      newSinceLastVisit: false,
-    });
-    this.jobs.setFilters(this.form.getRawValue());
-    this.reloadJobs();
+    this.form.reset(
+      {
+        keyword: '',
+        location: '',
+        jobType: '',
+        company: '',
+        dateFrom: '',
+        dateTo: '',
+        newSinceLastVisit: false,
+      },
+      { emitEvent: false },
+    );
+    this.applyFilters();
   }
 
   filterCompany(company: string): void {
-    this.form.patchValue({ company });
-    this.jobs.setFilters({ company });
-    this.reloadJobs();
+    this.form.patchValue({ company }, { emitEvent: false });
+    this.applyFilters();
   }
 
   updateStatus(jobId: string, status: ApplicationStatus): void {
